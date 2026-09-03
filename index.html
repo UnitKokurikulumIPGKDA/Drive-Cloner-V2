@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Drive Cloner Pro</title>
+    <title>Drive Cloner Pro - Anti-Duplicate System</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Font Inter -->
@@ -24,13 +24,13 @@
 </head>
 <body class="flex items-center justify-center p-4">
 
-    <!-- Kad Antaramuka Utama -->
-    <div class="glass p-8 sm:p-10 rounded-[2rem] w-full max-w-md shadow-2xl my-8">
+    <!-- Container Antaramuka Utama -->
+    <div class="glass p-8 sm:p-10 rounded-[2rem] w-full max-w-lg shadow-2xl my-8">
         
         <!-- Tajuk Aplikasi -->
         <div class="text-center mb-8">
             <h1 class="text-3xl font-bold text-white tracking-tight">Drive Cloner <span class="text-blue-500">Pro</span></h1>
-            <p class="text-slate-400 mt-2 text-sm">Klon folder Google Drive secara rekursif terus ke pangkalan data Sheet anda.</p>
+            <p class="text-slate-400 mt-2 text-sm">Sistem Salinan Pintar & Anti-Duplikasi Rekursif.</p>
         </div>
 
         <!-- Borang Input -->
@@ -54,10 +54,10 @@
                        class="w-full bg-slate-900/60 border border-slate-700/80 rounded-xl px-4 py-3.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all">
             </div>
 
-            <!-- Butang Mula Salin -->
+            <!-- Butang Aksi -->
             <button onclick="startCloningProcess()" id="btnAction"
                     class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-900/30 transition-all flex items-center justify-center group active:scale-[0.99]">
-                <span id="btnText">Mula Salin Sekarang</span>
+                <span id="btnText">Mula Salin / Sambung Sync</span>
             </button>
         </div>
         
@@ -67,17 +67,17 @@
                 <div id="statusIcon" class="text-lg">⏳</div>
                 <div class="flex-1">
                     <p id="statusTitle" class="text-xs font-semibold text-white mb-1">Memproses...</p>
-                    <p id="statusMsg" class="text-xs text-slate-400 leading-relaxed"></p>
+                    <div id="statusMsg" class="text-xs text-slate-400 leading-relaxed"></div>
                 </div>
             </div>
         </div>
 
     </div>
 
-    <!-- Skrip Pengurus Frontend -->
+    <!-- Skrip Frontend -->
     <script>
         /**
-         * Const URL Web App Google Apps Script khas
+         * Endpoint Web App Apps Script pengguna
          * @type {string}
          */
         const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbyY7mA9kMmLwIifKbuAf8BrzxY8MrOzwYHprG_JvCOwqxKPJXkeq_8V26BIqDWawixZ1Q/exec";
@@ -94,7 +94,7 @@
         }
 
         /**
-         * Menguruskan aliran kerja penghantaran maklumat klon ke Backend Apps Script.
+         * Menghantar permintaan salinan pintar ke Backend Apps Script
          */
         async function startCloningProcess() {
             const sourceRaw = document.getElementById('source').value.trim();
@@ -107,7 +107,6 @@
             const statusMsg = document.getElementById('statusMsg');
             const statusIcon = document.getElementById('statusIcon');
 
-            // 1. Pengesahan Input (Validation)
             if (!sourceRaw || !targetRaw) {
                 alert("⚠️ Sila isi kedua-dua ruangan Folder Sumber dan Sasaran!");
                 return;
@@ -116,23 +115,22 @@
             const sourceId = extractFolderId(sourceRaw);
             const targetId = extractFolderId(targetRaw);
 
-            // 2. Kemaskini Keadaan UI ke Mod Loading
+            // Setkan Keadaan UI Loading
             btn.disabled = true;
             btn.classList.add('opacity-60', 'cursor-not-allowed');
             btnText.innerHTML = `
                 <svg class="animate-spin h-5 w-5 text-white mr-2 inline" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg> Sedang Memproses...
+                </svg> Menyemak & Menyalin...
             `;
             
             statusBox.classList.remove('hidden');
             statusIcon.innerText = "⏳";
-            statusTitle.innerText = "Menghantar Arahan";
+            statusTitle.innerText = "Sistem Sedang Menyalcontent Pintar";
             statusTitle.className = "text-xs font-semibold text-blue-400";
-            statusMsg.innerText = "Menghantar permintaan ke pelayan Google Apps Script. Sila tunggu...";
+            statusMsg.innerText = "Menyemak fail wujud untuk elak duplikasi dan menyalin fail baru sahaja. Sila tunggu...";
 
-            // 3. Panggilan API ke Backend
             try {
                 const requestUrl = `${API_ENDPOINT}?source=${encodeURIComponent(sourceId)}&target=${encodeURIComponent(targetId)}`;
                 
@@ -147,18 +145,26 @@
 
                 const data = await response.json();
 
-                // 4. Memproses Tindak Balas Pelayan
                 if (data.status === 'success') {
-                    statusIcon.innerText = "✅";
-                    statusTitle.innerText = "Proses Penyalinan Berjaya!";
+                    const stats = data.details || {};
+                    statusIcon.innerText = stats.failedItems && stats.failedItems.length > 0 ? "⚠️" : "✅";
+                    statusTitle.innerText = data.message;
                     statusTitle.className = "text-xs font-semibold text-green-400";
+
+                    let failedHtml = "";
+                    if (stats.failedItems && stats.failedItems.length > 0) {
+                        failedHtml = `<br><br><b class="text-red-400">Gagal Disalin (${stats.failedItems.length}):</b><ul class="list-disc pl-4 text-slate-400">${stats.failedItems.map(item => `<li>${item}</li>`).join('')}</ul>`;
+                    }
+
                     statusMsg.innerHTML = `
-                        <b>Mesej:</b> ${data.message}<br>
-                        <b>Fail Disalin:</b> ${data.details ? data.details.filesCopied : 0}<br>
-                        <b>Subfolder Dicipta:</b> ${data.details ? data.details.foldersCreated : 0}
+                        <b>Fail Disalin Baharu:</b> ${stats.filesCopied || 0}<br>
+                        <b>Fail Dilangkau (Sedia Wujud):</b> ${stats.filesSkipped || 0}<br>
+                        <b>Folder Baharu Dicipta:</b> ${stats.foldersCreated || 0}<br>
+                        <b>Folder Diguna Semula:</b> ${stats.foldersReused || 0}
+                        ${failedHtml}
                     `;
                     
-                    btnText.innerText = "Selesai!";
+                    btnText.innerText = "Penyelarasan Selesai!";
                     btn.classList.remove('bg-blue-600', 'hover:bg-blue-500');
                     btn.classList.add('bg-green-600');
                 } else {
@@ -166,19 +172,17 @@
                 }
 
             } catch (error) {
-                // Pengendalian Ralat Rangkaian / Pelayan
                 statusIcon.innerText = "❌";
                 statusTitle.innerText = "Gagal Mengeksekusi";
                 statusTitle.className = "text-xs font-semibold text-red-400";
-                statusMsg.innerText = error.message || "Gagal berhubung dengan pelayan Apps Script. Pastikan kebenaran 'Anyone' dikonfigurasi.";
+                statusMsg.innerText = error.message;
 
                 btnText.innerText = "Cuba Lagi";
             } finally {
-                // Pulihkan semula kebolehan butang selepas 3 saat jika ralat
                 setTimeout(() => {
                     btn.disabled = false;
                     btn.classList.remove('opacity-60', 'cursor-not-allowed');
-                }, 1000);
+                }, 1500);
             }
         }
     </script>
