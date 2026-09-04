@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Drive Cloner Pro - Anti-Duplicate System</title>
+    <title>Drive Cloner Pro</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Font Inter -->
@@ -30,7 +30,7 @@
         <!-- Tajuk Aplikasi -->
         <div class="text-center mb-8">
             <h1 class="text-3xl font-bold text-white tracking-tight">Drive Cloner <span class="text-blue-500">Pro</span></h1>
-            <p class="text-slate-400 mt-2 text-sm">Sistem Salinan Pintar & Anti-Duplikasi Rekursif.</p>
+            <p class="text-slate-400 mt-2 text-sm">Penyelarasan Folder Google Drive & Log Nama Fail.</p>
         </div>
 
         <!-- Borang Input -->
@@ -74,10 +74,10 @@
 
     </div>
 
-    <!-- Skrip Frontend -->
+    <!-- Skrip Pengurus Frontend -->
     <script>
         /**
-         * Endpoint Web App Apps Script pengguna
+         * Endpoint Web App Apps Script Utama
          * @type {string}
          */
         const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbyY7mA9kMmLwIifKbuAf8BrzxY8MrOzwYHprG_JvCOwqxKPJXkeq_8V26BIqDWawixZ1Q/exec";
@@ -94,7 +94,7 @@
         }
 
         /**
-         * Menghantar permintaan salinan pintar ke Backend Apps Script
+         * Menghantar arahan penyalinan pintar ke backend
          */
         async function startCloningProcess() {
             const sourceRaw = document.getElementById('source').value.trim();
@@ -108,14 +108,14 @@
             const statusIcon = document.getElementById('statusIcon');
 
             if (!sourceRaw || !targetRaw) {
-                alert("⚠️ Sila isi kedua-dua ruangan Folder Sumber dan Sasaran!");
+                alert("⚠️ Sila masukkan pautan atau ID bagi Folder Sumber dan Sasaran!");
                 return;
             }
 
             const sourceId = extractFolderId(sourceRaw);
             const targetId = extractFolderId(targetRaw);
 
-            // Setkan Keadaan UI Loading
+            // Kemaskini Keadaan UI ke "Loading"
             btn.disabled = true;
             btn.classList.add('opacity-60', 'cursor-not-allowed');
             btnText.innerHTML = `
@@ -127,9 +127,9 @@
             
             statusBox.classList.remove('hidden');
             statusIcon.innerText = "⏳";
-            statusTitle.innerText = "Sistem Sedang Menyalcontent Pintar";
+            statusTitle.innerText = "Menghantar Arahan Menyalin";
             statusTitle.className = "text-xs font-semibold text-blue-400";
-            statusMsg.innerText = "Menyemak fail wujud untuk elak duplikasi dan menyalin fail baru sahaja. Sila tunggu...";
+            statusMsg.innerText = "Mendapatkan nama folder & menyemak fail wujud di Google Sheets...";
 
             try {
                 const requestUrl = `${API_ENDPOINT}?source=${encodeURIComponent(sourceId)}&target=${encodeURIComponent(targetId)}`;
@@ -153,14 +153,16 @@
 
                     let failedHtml = "";
                     if (stats.failedItems && stats.failedItems.length > 0) {
-                        failedHtml = `<br><br><b class="text-red-400">Gagal Disalin (${stats.failedItems.length}):</b><ul class="list-disc pl-4 text-slate-400">${stats.failedItems.map(item => `<li>${item}</li>`).join('')}</ul>`;
+                        failedHtml = `<br><br><b class="text-red-400">Item Gagal (${stats.failedItems.length}):</b><ul class="list-disc pl-4 text-slate-400">${stats.failedItems.map(item => `<li>${item}</li>`).join('')}</ul>`;
                     }
 
                     statusMsg.innerHTML = `
+                        <b>Folder Sumber:</b> ${stats.sourceName || '-'}<br>
+                        <b>Folder Sasaran:</b> ${stats.targetName || '-'}<br><br>
                         <b>Fail Disalin Baharu:</b> ${stats.filesCopied || 0}<br>
                         <b>Fail Dilangkau (Sedia Wujud):</b> ${stats.filesSkipped || 0}<br>
-                        <b>Folder Baharu Dicipta:</b> ${stats.foldersCreated || 0}<br>
-                        <b>Folder Diguna Semula:</b> ${stats.foldersReused || 0}
+                        <b>Subfolder Baharu:</b> ${stats.foldersCreated || 0}<br>
+                        <b>Subfolder Diguna Semula:</b> ${stats.foldersReused || 0}
                         ${failedHtml}
                     `;
                     
@@ -168,12 +170,12 @@
                     btn.classList.remove('bg-blue-600', 'hover:bg-blue-500');
                     btn.classList.add('bg-green-600');
                 } else {
-                    throw new Error(data.message || "Gagal memproses klon folder.");
+                    throw new Error(data.message || "Gagal memproses penyalinan.");
                 }
 
             } catch (error) {
                 statusIcon.innerText = "❌";
-                statusTitle.innerText = "Gagal Mengeksekusi";
+                statusTitle.innerText = "Ralat Pelaksanaan";
                 statusTitle.className = "text-xs font-semibold text-red-400";
                 statusMsg.innerText = error.message;
 
