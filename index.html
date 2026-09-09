@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@Keraberok Drive Cloner Pro</title>
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Font Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -24,19 +22,23 @@
 </head>
 <body class="flex items-center justify-center p-4">
 
-    <!-- Container Antaramuka Utama -->
     <div class="glass p-8 sm:p-10 rounded-[2rem] w-full max-w-lg shadow-2xl my-8">
 
-        <!-- Tajuk Aplikasi -->
         <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-white tracking-tight"> Haniff Faizal<span class="text-blue-500">Drive Cloner Pro</span></h1>
+            <h1 class="text-3xl font-bold text-white tracking-tight">Hanifffaizal <span class="text-blue-500"> Drive Clone Pro</span></h1>
             <p class="text-slate-400 mt-2 text-sm">Penyelarasan Folder Google Drive & Log Nama Fail.</p>
         </div>
 
-        <!-- Borang Input -->
-        <div class="space-y-5">
+        <!-- Notis job belum selesai -->
+        <div id="resumeBanner" class="hidden mb-5 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300">
+            <p class="mb-2">⚠️ Sync sebelum ini nampak belum selesai (<span id="resumeInfo"></span>).</p>
+            <div class="flex gap-2">
+                <button onclick="resumePreviousJob()" class="flex-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-semibold py-2 rounded-lg">Sambung</button>
+                <button onclick="dismissResumeBanner()" class="flex-1 bg-slate-700/40 hover:bg-slate-700/60 text-slate-300 font-semibold py-2 rounded-lg">Abaikan</button>
+            </div>
+        </div>
 
-            <!-- Input Folder Sumber -->
+        <div class="space-y-5">
             <div>
                 <label for="source" class="block text-xs font-semibold text-blue-400 uppercase tracking-wider mb-2 ml-1">
                     Folder Sumber (Source)
@@ -45,7 +47,6 @@
                        class="w-full bg-slate-900/60 border border-slate-700/80 rounded-xl px-4 py-3.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all">
             </div>
 
-            <!-- Input Folder Sasaran -->
             <div>
                 <label for="target" class="block text-xs font-semibold text-blue-400 uppercase tracking-wider mb-2 ml-1">
                     Folder Sasaran (Target)
@@ -54,14 +55,17 @@
                        class="w-full bg-slate-900/60 border border-slate-700/80 rounded-xl px-4 py-3.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all">
             </div>
 
-            <!-- Butang Aksi -->
             <button onclick="startCloningProcess()" id="btnAction"
                     class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-900/30 transition-all flex items-center justify-center group active:scale-[0.99]">
                 <span id="btnText">Mula Salin / Sambung Sync</span>
             </button>
+
+            <button onclick="loadFullReport()" id="btnReport"
+                    class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-3 rounded-xl border border-slate-700 transition-all text-sm">
+                📋 Lihat Log Penuh (Gagal &amp; Pending)
+            </button>
         </div>
 
-        <!-- Kotak Status Maklum Balas -->
         <div id="statusBox" class="mt-6 p-4 rounded-xl bg-slate-900/80 border border-slate-800 hidden transition-all">
             <div class="flex items-start gap-3">
                 <div id="statusIcon" class="text-lg">⏳</div>
@@ -72,30 +76,24 @@
             </div>
         </div>
 
+        <!-- Panel Log Penuh -->
+        <div id="reportBox" class="mt-6 p-4 rounded-xl bg-slate-900/80 border border-slate-800 hidden">
+            <p class="text-xs font-semibold text-white mb-3">Log Penuh: Item Gagal &amp; Pending</p>
+            <div id="reportContent" class="text-xs text-slate-400 leading-relaxed max-h-80 overflow-y-auto space-y-4"></div>
+        </div>
+
     </div>
 
-    <!-- Skrip Pengurus Frontend -->
     <script>
-        /**
-         * Endpoint Web App Apps Script Utama
-         * @type {string}
-         */
         const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbyY7mA9kMmLwIifKbuAf8BrzxY8MrOzwYHprG_JvCOwqxKPJXkeq_8V26BIqDWawixZ1Q/exec";
+        const STORAGE_KEY = "driveClonerActiveJob";
 
-        /**
-         * Mengekstrakan ID Drive daripada URL penuh atau mengembalikan ID asal.
-         * @param {string} input - Pautan URL atau ID Folder Drive.
-         * @returns {string} ID Folder yang sah.
-         */
         function extractFolderId(input) {
             if (!input) return '';
             const match = input.match(/([a-zA-Z0-9_-]{25,})/);
             return match ? match[1] : input.trim();
         }
 
-        /**
-         * Panggil API dan pulangkan JSON. Membuang ke ralat jika HTTP tidak OK.
-         */
         async function callApi(url) {
             const response = await fetch(url, { method: 'GET', redirect: 'follow' });
             if (!response.ok) {
@@ -104,9 +102,42 @@
             return response.json();
         }
 
-        /**
-         * Papar progress semasa (status masih 'in_progress')
-         */
+        function saveActiveJob(jobId, sourceId, targetId) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ jobId, sourceId, targetId, savedAt: Date.now() }));
+        }
+        function clearActiveJob() {
+            localStorage.removeItem(STORAGE_KEY);
+        }
+        function getSavedJob() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                return raw ? JSON.parse(raw) : null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // ----- Semak on load: ada job belum selesai? -----
+        window.addEventListener('DOMContentLoaded', () => {
+            const saved = getSavedJob();
+            if (saved) {
+                document.getElementById('resumeInfo').innerText = `Job ${saved.jobId.slice(0, 8)}...`;
+                document.getElementById('resumeBanner').classList.remove('hidden');
+            }
+        });
+
+        function dismissResumeBanner() {
+            clearActiveJob();
+            document.getElementById('resumeBanner').classList.add('hidden');
+        }
+
+        async function resumePreviousJob() {
+            const saved = getSavedJob();
+            if (!saved) return;
+            document.getElementById('resumeBanner').classList.add('hidden');
+            await runSyncLoop(`${API_ENDPOINT}?action=continue&jobId=${encodeURIComponent(saved.jobId)}`, saved.jobId, saved.sourceId, saved.targetId);
+        }
+
         function renderProgress(statusMsg, stats) {
             const failedCount = (stats.failedItems || []).length;
             statusMsg.innerHTML = `
@@ -119,9 +150,11 @@
             `;
         }
 
-        /**
-         * Papar keputusan akhir (status 'success')
-         */
+        function failedItemLine(item) {
+            const icon = item.type === 'Fail' ? '📄' : '📁';
+            return `<li>${icon} <b>[${item.type}]</b> ${item.name} — <span class="text-red-400">${item.reason}</span></li>`;
+        }
+
         function renderFinal(statusIcon, statusTitle, statusMsg, data) {
             const stats = data.details || {};
             statusIcon.innerText = stats.failedItems && stats.failedItems.length > 0 ? "⚠️" : "✅";
@@ -130,7 +163,7 @@
 
             let failedHtml = "";
             if (stats.failedItems && stats.failedItems.length > 0) {
-                failedHtml = `<br><br><b class="text-red-400">Item Gagal (${stats.failedItems.length}):</b><ul class="list-disc pl-4 text-slate-400">${stats.failedItems.map(item => `<li>${item}</li>`).join('')}</ul>`;
+                failedHtml = `<br><br><b class="text-red-400">Item Gagal (${stats.failedItems.length}):</b><ul class="list-none pl-1 text-slate-400 space-y-1 mt-1">${stats.failedItems.map(failedItemLine).join('')}</ul>`;
             }
 
             statusMsg.innerHTML = `
@@ -144,15 +177,7 @@
             `;
         }
 
-        /**
-         * Menghantar arahan penyalinan pintar ke backend, dan secara automatik
-         * menyambung (action=continue) jika job mengambil masa lebih daripada
-         * satu "chunk" pemprosesan (elak had masa 6 minit Apps Script).
-         */
-        async function startCloningProcess() {
-            const sourceRaw = document.getElementById('source').value.trim();
-            const targetRaw = document.getElementById('target').value.trim();
-
+        async function runSyncLoop(initialUrl, jobIdHint, sourceId, targetId) {
             const btn = document.getElementById('btnAction');
             const btnText = document.getElementById('btnText');
             const statusBox = document.getElementById('statusBox');
@@ -160,15 +185,6 @@
             const statusMsg = document.getElementById('statusMsg');
             const statusIcon = document.getElementById('statusIcon');
 
-            if (!sourceRaw || !targetRaw) {
-                alert("⚠️ Sila masukkan pautan atau ID bagi Folder Sumber dan Sasaran!");
-                return;
-            }
-
-            const sourceId = extractFolderId(sourceRaw);
-            const targetId = extractFolderId(targetRaw);
-
-            // Kemaskini Keadaan UI ke "Loading"
             btn.disabled = true;
             btn.classList.add('opacity-60', 'cursor-not-allowed');
             btnText.innerHTML = `
@@ -182,22 +198,20 @@
             statusIcon.innerText = "⏳";
             statusTitle.innerText = "Menghantar Arahan Menyalin";
             statusTitle.className = "text-xs font-semibold text-blue-400";
-            statusMsg.innerText = "Mendapatkan nama folder & menyemak fail wujud di Google Sheets...";
+            statusMsg.innerText = "Menyambung ke pelayan...";
 
             try {
-                const requestUrl = `${API_ENDPOINT}?source=${encodeURIComponent(sourceId)}&target=${encodeURIComponent(targetId)}`;
-                let data = await callApi(requestUrl);
+                let data = await callApi(initialUrl);
 
-                // Job besar diproses secara berperingkat oleh backend. Selagi
-                // status 'in_progress', panggil semula dengan action=continue
-                // supaya seluruh folder (walau besar) benar-benar disalin habis.
                 while (data.status === 'in_progress') {
+                    saveActiveJob(data.jobId, sourceId, targetId);
                     renderProgress(statusMsg, data.details || {});
                     const continueUrl = `${API_ENDPOINT}?action=continue&jobId=${encodeURIComponent(data.jobId)}`;
                     data = await callApi(continueUrl);
                 }
 
                 if (data.status === 'success') {
+                    clearActiveJob();
                     renderFinal(statusIcon, statusTitle, statusMsg, data);
                     btnText.innerText = "Penyelarasan Selesai!";
                     btn.classList.remove('bg-blue-600', 'hover:bg-blue-500');
@@ -211,13 +225,73 @@
                 statusTitle.innerText = "Ralat Pelaksanaan";
                 statusTitle.className = "text-xs font-semibold text-red-400";
                 statusMsg.innerText = error.message;
-
                 btnText.innerText = "Cuba Lagi";
             } finally {
                 setTimeout(() => {
                     btn.disabled = false;
                     btn.classList.remove('opacity-60', 'cursor-not-allowed');
                 }, 1500);
+            }
+        }
+
+        async function startCloningProcess() {
+            const sourceRaw = document.getElementById('source').value.trim();
+            const targetRaw = document.getElementById('target').value.trim();
+
+            if (!sourceRaw || !targetRaw) {
+                alert("⚠️ Sila masukkan pautan atau ID bagi Folder Sumber dan Sasaran!");
+                return;
+            }
+
+            const sourceId = extractFolderId(sourceRaw);
+            const targetId = extractFolderId(targetRaw);
+
+            // Nota: Backend kini sendiri akan kesan & sambung job lama yang belum
+            // selesai bagi pasangan source+target yang sama, jadi klik semula
+            // butang ini selamat walaupun job sebelumnya masih pending.
+            const requestUrl = `${API_ENDPOINT}?source=${encodeURIComponent(sourceId)}&target=${encodeURIComponent(targetId)}`;
+            await runSyncLoop(requestUrl, null, sourceId, targetId);
+        }
+
+        // ----- Panel Log Penuh (Gagal & Pending) -----
+        async function loadFullReport() {
+            const reportBox = document.getElementById('reportBox');
+            const reportContent = document.getElementById('reportContent');
+            reportBox.classList.remove('hidden');
+            reportContent.innerHTML = "⏳ Memuatkan log...";
+
+            try {
+                const data = await callApi(`${API_ENDPOINT}?action=report`);
+                if (data.status !== 'success') {
+                    throw new Error(data.message || "Gagal memuatkan log.");
+                }
+
+                let html = "";
+
+                html += `<div><b class="text-red-400">❌ Item Gagal (${data.failedCount})</b><ul class="list-none pl-1 mt-2 space-y-1">`;
+                if (data.failed.length === 0) {
+                    html += `<li class="text-slate-500">Tiada item gagal direkodkan.</li>`;
+                } else {
+                    data.failed.forEach(item => {
+                        const icon = item.type === 'Fail' ? '📄' : '📁';
+                        html += `<li>${icon} <b>[${item.type}]</b> ${item.name} — <span class="text-red-400">${item.reason}</span></li>`;
+                    });
+                }
+                html += `</ul></div>`;
+
+                html += `<div><b class="text-amber-400">⏳ Item Pending / Belum Diproses (${data.pendingCount})</b><ul class="list-none pl-1 mt-2 space-y-1">`;
+                if (data.pending.length === 0) {
+                    html += `<li class="text-slate-500">Tiada item pending buat masa ini.</li>`;
+                } else {
+                    data.pending.forEach(item => {
+                        html += `<li>📁 <b>[Folder]</b> ${item.folderName || item.sourceId}</li>`;
+                    });
+                }
+                html += `</ul></div>`;
+
+                reportContent.innerHTML = html;
+            } catch (error) {
+                reportContent.innerHTML = `<span class="text-red-400">Ralat: ${error.message}</span>`;
             }
         }
     </script>
